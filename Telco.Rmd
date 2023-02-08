@@ -1,0 +1,188 @@
+---
+title: "Telco"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+```{r setup, include=FALSE}
+rm(list=ls())
+options(scipen = 100)
+library(readr)
+library(MASS)
+library(caTools)
+library(dplyr)
+library(caTools)
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(cluster)
+library(factoextra)
+library(gridExtra)
+library(data.table)
+setwd("C:/Users/pasca/OneDrive/Desktop/BUS AN 516")
+Telco <- read.csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
+Telco$gender <- ifelse(Telco$gender == "Male", 1, 0)
+Telco[c("Partner", "Dependents", "PhoneService", "OnlineSecurity", "OnlineBackup", "DeviceProtection", "TechSupport", "StreamingTV", "StreamingMovies", "PaperlessBilling", "Churn", "MultipleLines")] <- ifelse(Telco[c("Partner", "Dependents", "PhoneService", "OnlineSecurity", "OnlineBackup", "DeviceProtection", "TechSupport", "StreamingTV", "StreamingMovies", "PaperlessBilling", "Churn", "MultipleLines")] == "Yes", 1, 0)
+## Telco$MultipleLines <- ifelse(Telco$MultipleLines == "No phone service", 0, ifelse(Telco$MultipleLines == "Yes", 2, 1))
+Telco$InternetService <- ifelse(Telco$InternetService == "No", 0, ifelse(Telco$InternetService == "DSL", 1, 2))
+Telco$Contract <- ifelse(Telco$Contract == "One year", 1, ifelse(Telco$Contract == "Two year", 2, 0))
+str(Telco)
+Telco.k <- Telco[,c(2:17,19,21)]
+Telco.k <- na.omit(Telco.k)
+```
+
+```{r}
+preprocess <- preProcess(Telco.k)
+TelcoNorm <- predict(preprocess, Telco.k)
+```
+
+```{r}
+set.seed(1234)
+fviz_nbclust(TelcoNorm, kmeans, method = "wss")
+```
+
+```{r}
+set.seed(1234)
+km.Telco6 <- kmeans(TelcoNorm, centers = 6, nstart = 25)
+km.Telco8 <- kmeans(TelcoNorm, centers = 8, nstart = 25)
+km.Telco6$size
+km.Telco8$size
+p1 <- fviz_cluster(km.Telco6, data = TelcoNorm, choose.vars = c("tenure", "MonthlyCharges"))
+p2 <- fviz_cluster(km.Telco8, data = TelcoNorm, choose.vars = c("tenure", "MonthlyCharges"), geom="")
+p2
+grid.arrange(p1,p2)
+```
+
+```{r}
+Telco.k %>%
+  mutate(Cluster = km.Telco6$cluster) %>%
+  group_by(Cluster) %>%
+  summarise_all("mean")
+
+t1 <- Telco.k %>%
+  mutate(Cluster = km.Telco8$cluster) %>%
+  group_by(Cluster) %>%
+  summarise_all("mean")
+
+tt <- transpose(t1)
+rownames(tt) <- colnames(t1)
+colnames(tt) <- rownames(t1)
+tt
+clipr::write_clip(tt)
+```
+
+## ii) Compare the clusters by looking at the mean values of the variables. How would you describe each cluster to the marketing department of Hubway?
+
+```{r}
+## Duration
+tapply(Hubway$Duration, km.Hub$cluster, mean)
+
+## Morning
+tapply(Hubway$Morning, km.Hub$cluster, mean)
+
+## Afternoon
+tapply(Hubway$Afternoon, km.Hub$cluster, mean)
+
+## Evening
+tapply(Hubway$Evening, km.Hub$cluster, mean)
+
+## Night
+tapply(Hubway$Night, km.Hub$cluster, mean)
+
+## Weekday
+tapply(Hubway$Weekday, km.Hub$cluster, mean)
+
+## Weekend
+tapply(Hubway$Weekend, km.Hub$cluster, mean)
+
+## Male
+tapply(Hubway$Male, km.Hub$cluster, mean)
+
+## Age
+tapply(Hubway$Age, km.Hub$cluster, mean)
+```
+
+Cluster 1 are Morning, Weekday, Male, old (above 45) riders
+
+Cluster 2 are mostly afternoon, Weekend, mostly male, middle aged (30-45) riders
+
+Cluster 3 are folks who ride a long time
+
+Cluster 4 are afternoon, weekday, female, middle aged (30-45) riders
+
+Cluster 5 are afternoon, weekday, male, old (above 45) riders
+
+Cluster 6 are evening, weekday, mostly male, young (under 30) riders
+
+Cluster 7 are folks who ride a short time (under 600 seconds)
+
+Cluster 8 are night, mostly male, young (under 30) riders
+
+Cluster 9 are afternoon, weekday, male, young (under 30) riders
+
+Cluster 10 are morning, weekday, female, middle aged (30-45) riders
+
+## iii) Do you tihnk some clusters are more interesting than others? Which ones?
+Cluster 3 appears to be unique in that it uses duration as its main differentiator. A lot of the other clusters are very similar to others but with slight differences. 1 and 9 are the same except 1 is old people riding in the morning and 9 is young people riding in the afternoon.
+
+## iv) Looking at these results, do you think it would be helpful to have more clusters or fewer clusters than 10? Why?
+I think it would be helpful to have fewer clusters. There aren't many variables at play and having 10 clusters means that there's a significant amount of overlap within each group.
+
+# c) Run with a different number of clusters
+
+```{r}
+set.seed(1234)
+km.Hub6 <- kmeans(HubwayNorm, centers = 6)
+```
+
+## i) How many trips are in each of the clusters?
+
+```{r}
+table(km.Hub6$cluster)
+```
+
+## ii) Like you did before, compare the clusters by looking at the mean values of the variables. How would you describe each cluster to the marketing department of Hubway?
+
+```{r}
+## Duration
+tapply(Hubway$Duration, km.Hub6$cluster, mean)
+
+## Morning
+tapply(Hubway$Morning, km.Hub6$cluster, mean)
+
+## Afternoon
+tapply(Hubway$Afternoon, km.Hub6$cluster, mean)
+
+## Evening
+tapply(Hubway$Evening, km.Hub6$cluster, mean)
+
+## Night
+tapply(Hubway$Night, km.Hub6$cluster, mean)
+
+## Weekday
+tapply(Hubway$Weekday, km.Hub6$cluster, mean)
+
+## Weekend
+tapply(Hubway$Weekend, km.Hub6$cluster, mean)
+
+## Male
+tapply(Hubway$Male, km.Hub6$cluster, mean)
+
+## Age
+tapply(Hubway$Age, km.Hub6$cluster, mean)
+```
+
+Cluster 1 are **morning**, weekday, mostly male, middle aged (30-45) riders
+
+Cluster 2 are not night riding, **weekend**, mostly male, middle aged (30-45) riders
+
+Cluster 3 are **long duration**, evening, weekday, **older (over 45) riders**
+
+Cluster 4 are afternoon, weekday, **female**, middle aged (30-45) riders
+
+Cluster 5 are afternoon, weekday, **male**, middle aged (30-45) riders
+
+Cluster 6 are **evening**, weekday, mostly male, **young (under 30) riders**
+
+## iii) How do these compare to the 10 cluster results? Do you think you got better insights by changing the number of clusters?
+
+I think they provide more distinct buckets than the 10 cluster results. I think we got better insights by changing the number of clusters. We're now able to see that older riders tend to do longer duration bike rides and younger riders tend to ride in the evenings!
